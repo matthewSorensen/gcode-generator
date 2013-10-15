@@ -37,14 +37,17 @@ ihat = np.array([1,0,0])
 jhat = np.array([0,1,0])
 khat = np.array([0,0,1])
 
-
 def dot2(a,b):
     # all of our barycentric coordinate math requires work on two vectors,
     # but we want to keep the original vectors three-vectors
     return a[0]*b[0]+a[1]*b[1]
 
-def raster_triangles(matrix, triangles):
+def raster_triangles(matrix, triangles, transformation = lambda(x): x):
     for normal, a, b, c, meta in triangles:
+        a = transformation(a)
+        b = transformation(b)
+        c = transformation(c)
+
         # pick some direction; identify the interval we need to raster upon  
         y = [np.dot(jhat,a),np.dot(jhat,b),np.dot(jhat,c)]
         yinterval = int(floor(min(y))), int(ceil(max(y)) + 1)
@@ -57,7 +60,10 @@ def raster_triangles(matrix, triangles):
         dot00 = dot2(v0,v0)
         dot01 = dot2(v0,v1)
         dot11 = dot2(v1,v1)
-        scale = 1.0 / (dot00 * dot11 - dot01 * dot01)
+
+        size = dot00 * dot11 - dot01 * dot01
+        if size == 0:
+            continue
 
         # this does twice as much work as needed, but is rather simple
         for i in range(*xinterval):
@@ -67,8 +73,8 @@ def raster_triangles(matrix, triangles):
                 dot02 = dot2(v0,v2)
                 dot12 = dot2(v1,v2)
 
-                v = (dot00 * dot12 - dot01 * dot02) * scale
-                u = (dot11 * dot02 - dot01 * dot12) * scale
+                v = (dot00 * dot12 - dot01 * dot02) / size
+                u = (dot11 * dot02 - dot01 * dot12) / size
                 
                 if (u >= 0) and (v >= 0) and (u + v <= 1):
-                    matrix[i][j] = (1-u-v)*a[2]+v*b[2]+u*c[2] # yay barycentric coordinates!
+                    matrix[i][j] = max(matrix[i][j], (1-u-v)*a[2]+v*b[2]+u*c[2]) # yay barycentric coordinates!
