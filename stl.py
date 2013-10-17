@@ -4,17 +4,26 @@
 # Copyright (c) 2013 Matthew D. Sorensen.
 # All rights reserved.
 
-# Redistribution and use in source and binary forms are permitted
-# provided that the above copyright notice and this paragraph are
-# duplicated in all such forms and that any documentation,
-# advertising materials, and other materials related to such
-# distribution and use acknowledge that the software was developed
-# by Matthew D. Sorensen.  The name of Matthew D. Sorensen
-# may not be used to endorse or promote products derived
-# from this software without specific prior written permission.
-# THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
-# IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#     * Neither the name of the <organization> nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL MATTHEW D SORENSEN BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import struct
 import io
@@ -49,20 +58,17 @@ def read_stl(stream, chunk = 256):
             index += facet_format.size
         buf = stream.read(chunk * facet_format.size)
 
-def pack_triangle(normal,t):
-    flat = 13 * [0]
-    flat[0] = normal[0]
-    flat[1] = normal[1]
-    flat[2] = normal[2]
+def pack_triangle(normal,t, facet):
+    facet[0] = normal[0]
+    facet[1] = normal[1]
+    facet[2] = normal[2]
 
     i = 3
     for a,b,c in t:
-        flat[i] = a
-        flat[i+1] = b
-        flat[i+2] = c
+        facet[i] = a
+        facet[i+1] = b
+        facet[i+2] = c
         i += 3
-
-    return flat
 
 def write_stl(triangles, stream, seekable = True, n = 0):
     """ 
@@ -73,14 +79,17 @@ def write_stl(triangles, stream, seekable = True, n = 0):
     stream.write(header_format.pack(*(80*[0]+[n])))
     count = 0
 
+    facet = 13*[0]
+
     for tri, normal in triangles:
         count += 1
 
         order_norm = np.cross(tri[0]-tri[1],tri[2]-tri[1])
         if np.dot(order_norm, normal) < 0:
             tri.reverse()
-  
-        s = facet_format.pack(*pack_triangle([0,0,0], tri))
+
+        pack_triangle([0,0,0], tri, facet)
+        s = facet_format.pack(*facet) 
         stream.write(s)
 
     if seekable:
