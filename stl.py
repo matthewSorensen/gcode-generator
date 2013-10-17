@@ -20,35 +20,38 @@ import struct
 import io
 import numpy as np
 
+# Binary STL formats begin with an 80-character header, which is followed bin a 32-bit unsigned integer,
+# containing the number of triangles in the file.
+header_format = struct.Struct('80bi')
+# Each of the triangle is composed of a normal vector, three points, and a 16-bit metadata element.
+# All vectors are 3-tuples of 32-bit floats. 
+facet_format  = struct.Struct('12fh')
+
 def read_stl(stream, chunk = 256):
-    # The stl standard is an 80-character header, followed by a 32-bit uint containing the number of triangles
-    # Each triangle is composed of a normal vector, three points, and a 16-bit metadata element.    
-    header = struct.Struct('80bi')
-    facet  = struct.Struct('12fh')
     # Read and parse a header.
     # However, the length field is ignored, because length fields are a generally bad idea.
-    buf = stream.read(header.size)
-    h = header.unpack_from(buf)
+    buf = stream.read(header_format.size)
+    h = header_format.unpack_from(buf)
 
-    buf = stream.read(chunk * facet.size)
+    buf = stream.read(chunk * facet_format.size)
     while buf != '':
         index = 0
         while index < len(buf):
-            f = facet.unpack_from(buf,index)
+            f = facet_format.unpack_from(buf,index)
             # gives the facet normal, point 1 - 3, and the metadata
-            normal = np.array([f[0],f[1],f[2]])
-            a = np.array([f[3],f[4],f[5]])
-            b = np.array([f[6],f[7],f[8]])
-            c = np.array([f[9],f[10],f[11]])
+            normal = np.array(f[0:3])
+            a = np.array(f[3:6])
+            b = np.array(f[6:9])
+            c = np.array(f[9:12])
 
             yield normal, a, b, c, f[12]
 
-            index += facet.size
-        buf = stream.read(chunk * facet.size)
+            index += facet_format.size
+        buf = stream.read(chunk * facet_format.size)
 
 
 def header(n,stream):
-    h = struct.pack("80Bi",*(80*[0]+[n]))
+    h = header_format.pack(*(80*[0]+[n]))
     stream.write(h)
     
 def order_vertex(points,normal):
@@ -69,23 +72,20 @@ def flat_tri(t):
 
 def stream_binary_stl(n, triangles, stream):
     header(n,stream)
-    fmt = struct.Struct("12fh")
-
     for tri, norm in triangles:
         ordered = order_vertex(tri,norm)
-        s = fmt.pack(*([0,0,0]+flat_tri(ordered)+[0]))
+        s = facet_format.pack(*([0,0,0]+flat_tri(ordered)+[0]))
         stream.write(s)
     return None
 
 def binary_stl(triangles, stream):
     header(0, stream)
-    fmt = struct.Struct("12fh")
     count = 0
 
     for tri, norm in triangles:
         count += 1
         ordered = order_vertex(tri,norm)
-        s = fmt.pack(*([0,0,0]+flat_tri(ordered)+[0]))
+        s = facet_format.pack(*([0,0,0]+flat_tri(ordered)+[0]))
         stream.write(s)
         
     stream.seek(0)
