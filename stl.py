@@ -49,45 +49,42 @@ def read_stl(stream, chunk = 256):
             index += facet_format.size
         buf = stream.read(chunk * facet_format.size)
 
+def pack_triangle(normal,t):
+    flat = 13 * [0]
+    flat[0] = normal[0]
+    flat[1] = normal[1]
+    flat[2] = normal[2]
 
-def header(n,stream):
-    h = header_format.pack(*(80*[0]+[n]))
-    stream.write(h)
-    
-def order_vertex(points,normal):
-    n = np.cross(points[0]-points[1],points[2]-points[1])
-    if np.dot(n, normal) < 0:
-        points.reverse()
-    return points
-
-def flat_tri(t):
-    coords = 9*[0]
-    i = 0
+    i = 3
     for a,b,c in t:
-        coords[i] = a
-        coords[i+1] = b
-        coords[i+2] = c
+        flat[i] = a
+        flat[i+1] = b
+        flat[i+2] = c
         i += 3
-    return coords
 
-def stream_binary_stl(n, triangles, stream):
-    header(n,stream)
-    for tri, norm in triangles:
-        ordered = order_vertex(tri,norm)
-        s = facet_format.pack(*([0,0,0]+flat_tri(ordered)+[0]))
-        stream.write(s)
-    return None
+    return flat
 
-def binary_stl(triangles, stream):
-    header(0, stream)
+def write_stl(triangles, stream, seekable = True, n = 0):
+    """ 
+    Writes a binary stl to a stream. If we can't seek on the stream, 
+    the number of facets in the file must be explicitly provided by the caller.
+    """
+
+    stream.write(header_format.pack(*(80*[0]+[n])))
     count = 0
 
-    for tri, norm in triangles:
+    for tri, normal in triangles:
         count += 1
-        ordered = order_vertex(tri,norm)
-        s = facet_format.pack(*([0,0,0]+flat_tri(ordered)+[0]))
+
+        order_norm = np.cross(tri[0]-tri[1],tri[2]-tri[1])
+        if np.dot(order_norm, normal) < 0:
+            tri.reverse()
+  
+        s = facet_format.pack(*pack_triangle([0,0,0], tri))
         stream.write(s)
-        
-    stream.seek(0)
-    header(count, stream)
+
+    if seekable:
+        stream.seek(0)
+        stream.write(header_format.pack(*(80*[0]+[count])))
+
     return count
