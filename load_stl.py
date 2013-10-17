@@ -7,32 +7,8 @@ import numpy as np
 
 from math import floor, ceil
 
-def read_stl(stream, chunk = 1024):
-    # The stl standard is an 80-character header, followed by a 32-bit uint containing the number of triangles
-    # Each triangle is composed of a normal vector, three points, and a 16-bit metadata element.    
-    header = struct.Struct('80bi')
-    facet  = struct.Struct('12fh')
-    # Read and parse a header.
-    # However, the length field is ignored, because length fields are a generally bad idea.
-    buf = stream.read(header.size)
-    h = header.unpack_from(buf)
+from stl import read_stl
 
-    buf = stream.read(chunk * facet.size)
-    while buf != '':
-        index = 0
-        while index < len(buf):
-            f = facet.unpack_from(buf,index)
-            # gives the facet normal, point 1 - 3, and the metadata
-            normal = np.array([f[0],f[1],f[2]])
-            a = np.array([f[3],f[4],f[5]])
-            b = np.array([f[6],f[7],f[8]])
-            c = np.array([f[9],f[10],f[11]])
-
-            yield normal, a, b, c, f[12]
-
-            index += facet.size
-        buf = stream.read(chunk * facet.size)
-   
 ihat = np.array([1,0,0])
 jhat = np.array([0,1,0])
 khat = np.array([0,0,1])
@@ -78,3 +54,13 @@ def raster_triangles(matrix, triangles, transformation = lambda(x): x):
                 
                 if (u >= 0) and (v >= 0) and (u + v <= 1):
                     matrix[i][j] = max(matrix[i][j], (1-u-v)*a[2]+v*b[2]+u*c[2]) # yay barycentric coordinates!
+
+
+test = np.zeros((90,70))
+
+with open("test/test.stl","rb") as f:
+    raster_triangles(test, read_stl(f))
+
+import matplotlib.pyplot as plt
+plt.imshow(test)
+plt.show()
