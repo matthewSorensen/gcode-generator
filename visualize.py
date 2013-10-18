@@ -44,5 +44,5 @@ def show_triangles(triangles, color = False):
     if color:
         triangular_mesh(vert[0], vert[1], vert[2], tri, color = color)
     else:
-        triangular_mesh(vert[0], vert1[1], vert[2], tri)
+        triangular_mesh(vert[0], vert[1], vert[2], tri)
     
