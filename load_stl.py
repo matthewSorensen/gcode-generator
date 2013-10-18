@@ -59,7 +59,9 @@ def raster_triangles(matrix, triangles, transformation = lambda(x): x):
 test = np.zeros((90,70))
 
 with open("test/test.stl","rb") as f:
-    raster_triangles(test, read_stl(f))
+    gen = read_stl(f)
+    next(gen) # ignore the length
+    raster_triangles(test, gen)
 
 import matplotlib.pyplot as plt
 plt.imshow(test)

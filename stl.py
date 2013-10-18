@@ -42,6 +42,8 @@ def read_stl(stream, chunk = 256):
     buf = stream.read(header_format.size)
     h = header_format.unpack_from(buf)
 
+    yield h[80]
+
     buf = stream.read(chunk * facet_format.size)
     while buf != '':
         index = 0

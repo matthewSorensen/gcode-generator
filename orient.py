@@ -23,27 +23,6 @@ def sample_normals(n, stream):
     return normals
 
 
-
-#def position(normal, stream):
-#    minima, maxima = 0,0
-#    is_three_axis = True
-
- #   for face in stream:
-  #      a,b,c = face[1:4]
-   #     centroid = 0.33333 * (a+b+c)
-        
-    #    c = np.dot(normal, centroid)
-
-     #   minima = min(minima, c)
-      #  maxima = max(maxima, c)
-
-       # if np.dot(normal, np.cross(a-b, c-b)) < -0.001:
-            # this is actually a more complex test than Ganter thinks, once you take fixturing into account.
-            # three axis test == all facets are either coplanar with reference plane, or n hat . plane hat > 0
-       #     is_three_axis = False
-
-#    return minima, maxima, is_three_axis
-
 def position(normal, angle_eps, position_eps, stream):
     minima = None
     
@@ -66,12 +45,17 @@ def position(normal, angle_eps, position_eps, stream):
 
 
 facets = None
+length = 0
 
 with open("test/part3.stl","rb") as f:
-    facets = list(stl.read_stl(f))
+    gen = stl.read_stl(f)
+    length = next(gen)
+    facets = list(gen)
 
-normals = sample_normals(len(facets), facets)
-clustered = DBSCAN(eps = 0.3, min_samples = 1).fit(normals)
+print length
+
+normals = sample_normals(len(facets), facets) # choosing the number of samples
+clustered = DBSCAN(eps = 0.3, min_samples = 1).fit(normals) # and min samples per cluster are key to getting this to work
 labels = clustered.labels_
 
 candidates = dict()
