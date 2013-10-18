@@ -2,13 +2,24 @@ import numpy as np
 from numpy.linalg import norm
 from mayavi import mlab
 from sklearn.cluster import DBSCAN
+import random
 
 import stl
 import visualize
 
-def sample_triangles(t,n):
-    return t[1:min(len(t),n)]
+def sample_triangles(tri,n):
+    result = n*[None]
+    i = 0
 
+    prob = float(n) / float(len(tri))
+    for t in tri:
+        if random.random() <= prob:
+            result[i] = t
+            i += 1
+            if n <= i:
+                break
+    return result[0:i]
+    
 def pack_normals(triangles):
     normals = np.zeros((len(triangles),3))
     i = 0
@@ -71,8 +82,8 @@ def orient_part(triangles, nsamples, cluster):
 with open("test/test.stl","rb") as f:
     gen = stl.read_stl(f)
     length = next(gen)
-    
-    orient_part(map(stl.points,gen), 2000, 2)
+    orient_part(map(stl.points,gen), 1000, 2)
+
     mlab.show()
     
 
