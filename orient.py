@@ -8,6 +8,13 @@ import stl
 import visualize
 
 def sample_triangles(tri,n):
+
+    # figure out some way to weight triangle size
+    # also, switch to calculating all of the triangle normals at once, and passing them everywhere
+
+    if len(tri) < n:
+        return tri
+
     result = n*[None]
     i = 0
 
@@ -61,30 +68,39 @@ def orient_part(triangles, nsamples, cluster):
     samples = sample_triangles(triangles, nsamples)
     normals = pack_normals(samples)
 
-
     visualize.show_triangles(triangles, color = (0.3,0.3,0.3))
     visualize.show_triangles(samples)
 
-    clusters = DBSCAN(eps = 0.3, min_samples = cluster).fit(normals)
+    clusters = DBSCAN(eps = 0.1, min_samples = cluster).fit(normals)
 
     candidates = dict()
 
     for i, group in enumerate(clusters.labels_):
-        vector = candidates.get(group)
-        if vector is None:    # if we're being smart, we should sort this by count, area, and divergence in the group
-            candidates[group] = normals[i]
+        if group == -1:
+            continue
 
-    for i, vector in candidates.items():
-        works, start = position(-1 * vector, 0.1, 0.1, triangles)
+        orientation = candidates.get(group)
+        normal = normals[i]
+        if orientation is None:
+            candidates[group] = [1, normal, normal, normal] # list, so it is mutable
+        else:
+            orientation[0] = orientation[0] + 1
+            orientation[1] = orientation[1] + normal
+            orientation[2] = np.minimum(orientation[2], normal)
+            orientation[3] = np.maximum(orientation[3], normal)
+            # we actually really want the total area of the cluster as well, assuming our sample is evenly distributed over area.
+    candidates = [(can[0], can[1], norm(can[3]-can[2]))for i, can in candidates.items()]    
+    # we can now sort by the cluster spread and size, so that we test more probable solutions first, and terminate faster
+    for candidate in sorted(candidates, key = lambda x : (x[2], -1 * x[0])):
+        normal = -1 * candidate[1] / float(candidate[0])
+        works, start = position(normal, 0.01, 0.01, triangles)
         if works:
-            print vector, "is a valid part orientation"
+            print normal, "is a valid part orientation, starting at", start
+
 
 with open("test/test.stl","rb") as f:
     gen = stl.read_stl(f)
     length = next(gen)
     orient_part(map(stl.points,gen), 1000, 2)
-
     mlab.show()
     
-
-
