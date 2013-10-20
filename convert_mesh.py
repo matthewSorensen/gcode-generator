@@ -75,8 +75,3 @@ def raster_mesh(verts, tri, trans, matrix):
                 if (u >= 0) and (v >= 0) and (u + v <= 1):
                     matrix[i][j] = max(matrix[i][j], (1-u-v)*a[2]+v*b[2]+u*c[2]) # yay barycentric coordinates!
 
-
-
-
-
-

@@ -51,14 +51,17 @@ def read_stl(stream, chunk = 256):
             f = facet_format.unpack_from(buf,index)
             # gives the facet normal, point 1 - 3, and the metadata
             normal = np.array(f[0:3])
-            a = np.array(f[3:6])
-            b = np.array(f[6:9])
-            c = np.array(f[9:12])
+            a = tuple(f[3:6])
+            b = tuple(f[6:9])
+            c = tuple(f[9:12])
 
             yield normal, a, b, c, f[12]
 
             index += facet_format.size
         buf = stream.read(chunk * facet_format.size)
+
+def points(vert):
+    return vert[1:4]
 
 def pack_triangle(normal,t, facet):
     facet[0] = normal[0]
