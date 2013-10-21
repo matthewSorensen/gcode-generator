@@ -22,12 +22,12 @@ def triangles_to_mesh(triangles):
     force = list(unique_points(triangles))
     point_dict, n = force[-1]
 
-    points = numpy.empty((3,n), dtype = float) 
+    points = numpy.empty((n,3), dtype = float) 
 
     for point, i in point_dict.iteritems(): # this is a natural place to put a coordinate conversion 
-        points[0][i] = point[0]
-        points[1][i] = point[1]
-        points[2][i] = point[2]
+        points[i][0] = point[0]
+        points[i][1] = point[1]
+        points[i][2] = point[2]
 
     return points, force[0:len(force)-1] 
 
@@ -36,13 +36,14 @@ def dot2(a,b):
     # but we want to keep the original vectors three-vectors
     return a[0]*b[0]+a[1]*b[1]
 
-def raster_mesh(verts, tri, trans, matrix):
+def raster_mesh(mesh, trans, matrix):
+    verts, tri = mesh
     trans = numpy.array([trans[0],trans[1],1]) # trans is a 2D scaling vector - expand to 3-space
 
     for a,b,c in tri:
-        a = numpy.transpose(verts[...,a]) * trans
-        b = numpy.transpose(verts[...,b]) * trans
-        c = numpy.transpose(verts[...,c]) * trans
+        a = verts[a,...] * trans
+        b = verts[b,...] * trans
+        c = verts[c,...] * trans
 
         # pick some direction; identify the interval we need to raster upon  
         y = [a[1],b[1],c[1]]
