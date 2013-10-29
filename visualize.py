@@ -1,4 +1,5 @@
 import mayavi.mlab as mlab
+import numpy as np
 
 def show_paths(gen):
     for seg in gen:
@@ -11,3 +12,12 @@ def show_paths(gen):
             points[2][i] = p[2]
             i += 1
         mlab.plot3d(points[0],points[1],points[2], tube_radius = None)
+
+def show_matrix(mat):
+    mlab.surf(mat)
+    
+def show_mesh(points, triangles):
+    mlab.triangular_mesh(points[...,0],points[...,1],points[...,2], triangles)
+
+def show():
+    mlab.show()
