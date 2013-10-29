@@ -35,14 +35,13 @@ def intersect_triangle_plane(triangle, normal, value, eps = 0.0001):
     sig = sum(signs)
 
     if np.prod(signs) == 0:
-        is_convex = sig == 0 and not all(signs == 0)
-
+        is_convex = (sig == 0) and (signs[0] != 0 or signs[1] != 0 or signs[2] != 0)
         for i, z in enumerate(signs):
             if z == 0:
-                yield tri[i]
+                yield triangle[i]
                 if is_convex:
                     j,k = (i+1) % 3, (i+2) % 3
-                    yield linear_comb(tri[j],tri[k], zvalues[j], zvalues[k])
+                    yield linear_comb(triangle[j],triangle[k], zvalues[j], zvalues[k])
 
     elif abs(sig) == 1:
         for i, z in enumerate(signs):
