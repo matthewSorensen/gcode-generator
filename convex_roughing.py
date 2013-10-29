@@ -25,43 +25,31 @@ def eps_sign(x,e):
     else:
         return 1
 
-def linear_comb(points,heights):
-    t = heights[1] / (heights[1] - heights[0])
-    return t * points[0] + (1-t) * points[1]
-                  
-def points_on_plane(tri, zval, zhat, eps = 0.0001):
-    a,b,c = tri
-    za = np.dot(a, zhat) - zval
-    zb = np.dot(b, zhat) - zval
-    zc = np.dot(c, zhat) - zval
+def linear_comb(x,y,zx,zy):
+    t = zy / (zy - zx)
+    return t * x + (1-t) * y
 
-    signs = np.array([eps_sign(za, eps), eps_sign(zb, eps), eps_sign(zc, eps)])
+def intersect_triangle_plane(triangle, normal, value, eps = 0.0001):
+    zvalues = list(np.dot(v, normal) - value for v in triangle)
+    signs = list(eps_sign(z, eps) for z in zvalues)
     sig = sum(signs)
 
-    if np.prod(signs) == 0: # degenerate cases with one or more points on the plane
-            # all zeros are intersections, by definition:
-        if signs[0] == 0:
-            yield a 
-        if signs[1] == 0:
-            yield b 
-        if signs[2] == 0:
-            yield c
+    if np.prod(signs) == 0:
+        is_convex = sig == 0 and not all(signs == 0)
 
-        if sig == 0 and not all(signs == 0): # one zero, and a convex combination of the other two
-            for i, z in enumerate(signs):
-                if z == 0: #solve for the convex combination that works
-                    yield linear_comb([[b,c],[a,c],[a,b]][i],[[zb,xc],[za,zc],[za,zb]][i])
-                    break 
-    elif abs(sig) == 1: # sig can't be zero or two, becase three of -1 or 1 must sum to absolute value of 3 or 1
         for i, z in enumerate(signs):
-            if z == -1 * sig: # odd one out - [-1,-1,1] sums to -1, 1 is odd one, etc
-                this = [[a,za],[b,zb],[c,zc]][i]
-                others = [[b,c],[a,c],[a,b]][i]
-                othersh = [[zb,zc],[za,zc],[za,zb]][i]
+            if z == 0:
+                yield tri[i]
+                if is_convex:
+                    j,k = (i+1) % 3, (i+2) % 3
+                    yield linear_comb(tri[j],tri[k], zvalues[j], zvalues[k])
 
-                yield linear_comb([others[0],this[0]],[othersh[0], this[1]])
-                yield linear_comb([others[1],this[0]],[othersh[1], this[1]])
-
+    elif abs(sig) == 1:
+        for i, z in enumerate(signs):
+            if z == -1 * sig:
+                j,k = (i+1) % 3, (i+2) % 3
+                yield linear_comb(triangle[j], triangle[i], zvalues[j], zvalues[i])
+                yield linear_comb(triangle[k], triangle[i], zvalues[k], zvalues[i])
                 break
 
 def con(g):
@@ -69,18 +57,22 @@ def con(g):
         for f in h:
             yield f
 
-def comp(points,triangles,interval,i):
-    a,b,c = triangles[interval[i]]
-    return (points[a],points[b], points[c])
+def triangles_containing(points, triangles, intervals, z):
+    for i in intervals.overlap_point(z):
+        a,b,c = triangles[intervals[i]]
+        yield points[a], points[b], points[c]
+
 
 def hull_on_plane(mesh, intervals, zval, zhat):
     points, triangles = mesh
 
-    points = list(con(points_on_plane(comp(points,triangles,intervals,i),zval,zhat) for i in intervals.overlap_point(zval)))
- 
+    points = list(con(intersect_triangle_plane(tri, zhat, zval) for tri in triangles_containing(points,triangles, intervals,zval)))
+
     flat = np.zeros((len(points),2))
     for i, p in enumerate(points):
         flat[i][0] = p[0]
         flat[i][1] = p[1]
 
     return ConvexHull(flat, incremental = True)
+
+# now for the fun part: generating contours from a convex polygon

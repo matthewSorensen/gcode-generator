@@ -1,4 +1,4 @@
-from shapely.geometry import LineString, MultiLineString, Polygon
+from shapely.geometry import LineString, MultiLineString, LinearRing, Polygon
 
 from math import sqrt
 import numpy as np
@@ -17,12 +17,18 @@ class Cell:
 
     def construct(self):
         last = self.start        
+
+
         bounds = self.region.bounds
         size = sqrt(pow(bounds[2]-bounds[0],2)+pow(bounds[3]-bounds[1],2))
 
         while True:
             self.paths.append(last)
             last = self.offset(last,size)
+
+            if last.is_empty:
+                return
+
             inside = self.region.intersection(last)
           
             if inside.is_empty:
@@ -32,9 +38,13 @@ class Cell:
                 for line in inside:
                     a,b,c,d = line.bounds
                     box = Polygon([(a,b),(c,b),(c,d),(a,d)])
-                    region = Cell(box.intersection(self.region),box.intersection(self.bound),line, self.offset)
-                    region.construct()
-                    self.subregions.append(region)
+                    region = box.intersection(self.region)
+                    if region.is_empty:
+                        continue
+
+                    sub = Cell(region,box.intersection(self.bound),line, self.offset)
+                    sub.construct()
+                    self.subregions.append(sub)
                 break
 
             last = inside
@@ -48,7 +58,6 @@ class Cell:
         for seg in self.paths:
             yield seg
 
-
 def extend(tip, first, length):
     tip = np.array(tip)
     first = np.array(first)
@@ -58,8 +67,14 @@ def extend(tip, first, length):
     return (tip[0], tip[1])
 
 def offsetting(obj,size):
-    # make this more generic, so that it works with closed curves
-    off = obj.parallel_offset(0.05,'left')
+    off = obj.parallel_offset(1,'left')
+    if off.is_empty:
+        return off
+
+
+    if type(off) == LinearRing:
+        return off
+
     # take the first and last line segments, and make them very long
     copy = list(off.coords)
 
