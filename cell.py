@@ -3,6 +3,58 @@ from shapely.geometry import LineString, MultiLineString, LinearRing, Polygon
 from math import sqrt
 import numpy as np
 from numpy.linalg import norm
+import visualize
+
+def extend(tip, first, length):
+    tip = np.array(tip)
+    first = np.array(first)
+    direction = tip - first
+    
+    tip = first + (length / norm(direction)) * direction
+    return (tip[0], tip[1])
+
+def extend_line(line, length):
+    points = list(line.coords)
+    points[0] = extend(points[0],points[1],length)
+    points[-1] = extend(points[-1],points[-2],length)
+
+    return points
+
+def to_visual(gen):
+    for seg in gen:
+        yield list((p[0],p[1], 0)       for p in seg.coords)
+
+
+def arbitrary_bounding_box(start,end, coords, big):
+    start = np.array(start)
+    end = np.array(end)
+
+    ihat = end - start
+    ihat = ihat * 1 / norm(ihat)
+    jhat = np.array([-1 * ihat[1], ihat[0]]) # ccw 90 degree rotation, defining the rest of our coordinate system
+
+    xbounds, ybounds = (0,0),(0,0)
+
+    for point in coords:
+        disp = np.array(point) - start
+        xc = np.dot(ihat,disp)
+        yc = np.dot(jhat,disp)
+        
+        xbounds = (min(xbounds[0], xc), max(xbounds[1], xc))
+        ybounds = (min(ybounds[0], yc), max(ybounds[1], yc))
+ 
+    low = start + xbounds[0] * ihat
+    high = end + max(0, xbounds[1] - np.dot(ihat, end)) * ihat
+    lower = start + (xbounds[0] - big) * ihat
+    higher = end + max(0, big + xbounds[1] - np.dot(ihat, end)) * ihat
+    
+#    box = [lower, low, low - big * jhat, high - big * jhat, high, higher, higher + big * jhat, lower + big * jhat]
+#    box = [ lower, low, low - big * jhat, high - big * jhat, high + big * jhat, low + big* jhat]
+
+
+    # meh, we need to partition all of the region into non-intersecting subregions - don't need complete coverage, but
+    # we do need complete coverage of the areas we haven't covered.
+    return box
 
 class Cell:
 
@@ -36,16 +88,21 @@ class Cell:
 
             if type(inside) == MultiLineString:
                 for line in inside:
-                    a,b,c,d = line.bounds
-                    box = Polygon([(a,b),(c,b),(c,d),(a,d)])
-                    region = box.intersection(self.region)
+
+                    p = arbitrary_bounding_box(line.coords[0],line.coords[-1],line.coords, 100)
+
+                 #   visualize.show_paths(to_visual([LinearRing(p)]))
+                    
+                    box = Polygon(p)
+
+                    region = self.region.intersection(box) 
                     if region.is_empty:
                         continue
 
                     sub = Cell(region,box.intersection(self.bound),line, self.offset)
                     sub.construct()
                     self.subregions.append(sub)
-                break
+                return
 
             last = inside
         return None
@@ -58,16 +115,8 @@ class Cell:
         for seg in self.paths:
             yield seg
 
-def extend(tip, first, length):
-    tip = np.array(tip)
-    first = np.array(first)
-    direction = tip - first
-    
-    tip = first + (length / norm(direction)) * direction
-    return (tip[0], tip[1])
-
 def offsetting(obj,size):
-    off = obj.parallel_offset(1,'left')
+    off = obj.parallel_offset(1,'left', join_style = 2)
     if off.is_empty:
         return off
 
