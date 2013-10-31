@@ -60,6 +60,6 @@ c.construct()
 visualize.show_paths(to_visual(c.emit()))
 visualize.show_paths(to_visual([shape.LinearRing([(0,0),(100,0),(100,100),(0,100)])]))
 
-#visualize.show_mesh(*mesh)
+visualize.show_mesh(*mesh)
 visualize.show()
 
