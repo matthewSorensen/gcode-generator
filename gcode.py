@@ -26,14 +26,11 @@ import cell
 from shapely.ops import polygonize
 import shapely.geometry as shape
 
-# import LineString, MultiLineString, LinearRing
-
-
-
+z = 9
 
 def to_visual(gen):
     for seg in gen:
-        yield list((p[0],p[1], 16)       for p in seg.coords)
+        yield list((p[0],p[1], z)       for p in seg.coords)
 
 gen = None
 mesh = None 
@@ -44,21 +41,25 @@ with open("test/test.stl","rb") as f:
     mesh = convert_mesh.triangles_to_mesh(map(stl.points, gen))
 
 zbuf = convex_roughing.construct_intervals(mesh,np.array([0,0,1]))
-hull = convex_roughing.hull_on_plane(mesh, zbuf, 15,np.array([0,0,1]))
+hull = convex_roughing.hull_on_plane(mesh, zbuf, z, np.array([0,0,1]))
 
 
 points = list(hull.points[i] for i in hull.vertices)
+points.append(points[0])
+
 points.reverse()
 polygon = shape.LinearRing(points)
 
 
-region = shape.Polygon([(0,0),(100,0),(100,100),(0,100)])
+region = shape.LinearRing([(-10,0),(100,0),(100,100),(-10,100)])
 
 c = cell.Cell(region, region, polygon, cell.offsetting)
 
 c.construct()
 
 visualize.show_paths(to_visual(c.emit()))
-visualize.show_mesh(*mesh)
+visualize.show_paths(to_visual([shape.LinearRing([(0,0),(100,0),(100,100),(0,100)])]))
+
+#visualize.show_mesh(*mesh)
 visualize.show()
 

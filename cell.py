@@ -1,10 +1,11 @@
 from shapely.geometry import LineString, MultiLineString, LinearRing, Polygon
-from shapely.ops import linemerge
+from shapely.ops import linemerge, polygonize
 from math import sqrt
 import numpy as np
 from numpy.linalg import norm
 import shapely_utils
 import visualize
+from shapely.validation import explain_validity
 
 def extend(tip, first, length):
     tip = np.array(tip)
@@ -22,17 +23,17 @@ def extend_line(line, length):
     points[-1] = extend(points[-1],points[-2],length)
 
     return points
+
 i = 0
 
 def to_visual(gen):
     global i
+    i -= 10
     for seg in gen:
-        i -= 1
         yield list((p[0],p[1], i) for p in seg.coords)
 
 def dist(a,b):
     return sqrt(pow(a[0]-b[0],2)+ pow(a[1]-b[1],2))
-
 
 
 def new_bound(linear_ring, line, big):    
@@ -48,15 +49,22 @@ def new_bound(linear_ring, line, big):
     high = start + big * ihat
 
     box = Polygon([low, high, high + big * jhat, low + big * jhat]) # half-plane!
-    new = box.intersection(linear_ring)
+    new = shapely_utils.intersect(box, linear_ring)
 
-    if type(new) == MultiLineString:
-        return shapely_utils.best_closure(line, new)
 
-    visualize.show_paths(to_visual([line]))
-    visualize.show_paths(to_visual([linear_ring]))
+    #visualize.show_paths(to_visual([line]))
+    visualize.show_paths(to_visual(new))
+    
 
-    return shapely_utils.best_closure(line, [new])
+    return shapely_utils.best_closure(line, new)
+
+#    if type(new) == MultiLineString:
+ #       return shapely_utils.best_closure(line, new)
+
+#    visualize.show_paths(to_visual([line]))
+ #   visualize.show_paths(to_visual([linear_ring]))
+
+  #  return shapely_utils.best_closure(line, [new])
 
 
 class Cell:
@@ -71,6 +79,9 @@ class Cell:
         self.subregions = []
 
     def construct(self):
+
+        global i
+
         last = self.start        
 
         bounds = self.region.bounds
@@ -78,6 +89,8 @@ class Cell:
 
         region = Polygon(self.region.coords)
         if not region.is_valid:
+            visualize.show_paths(to_visual([self.region]),color = (1,0,0))
+            print explain_validity(region)
             return
         while True:
             self.paths.append(last)
@@ -85,26 +98,26 @@ class Cell:
             if last.is_empty:
                 return
 
-            inside = region.intersection(last)          
-            if inside.is_empty:
+            inside = shapely_utils.intersect(region, last)
+
+            if len(inside) == 0:
                 return
-
-            if type(inside) == MultiLineString and len(inside) == 2 and type(last) == LinearRing:
-                inside = linemerge(inside)
-
-            if type(inside) == MultiLineString:
+            if len(inside) > 1:
+                
+                i -= 20
                 for line in inside:
-                        p = new_bound(self.region, line, size)
-                        if p.is_empty:
-                            continue
+                    p = new_bound(self.region, line, size)
+                    if p.is_empty:
+                        print "wtf bad case is bad"
+                        continue
 
-                        sub = Cell(p, None, line, self.offset)
+                    sub = Cell(p, None, line, self.offset)
         
-                        sub.construct()
-                        self.subregions.append(sub)
-                return
+                    sub.construct()
+                    self.subregions.append(sub)
 
-            last = inside
+            last = inside[0]
+
         return None
 
     def emit(self):
