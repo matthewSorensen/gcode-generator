@@ -28,7 +28,7 @@ i = 0
 
 def to_visual(gen):
     global i
-    i -= 10
+    i -= 1
     for seg in gen:
         yield list((p[0],p[1], i) for p in seg.coords)
 
@@ -50,22 +50,8 @@ def new_bound(linear_ring, line, big):
 
     box = Polygon([low, high, high + big * jhat, low + big * jhat]) # half-plane!
     new = shapely_utils.intersect(box, linear_ring)
-
-
-    #visualize.show_paths(to_visual([line]))
-    visualize.show_paths(to_visual(new))
     
-
-    return shapely_utils.best_closure(line, new)
-
-#    if type(new) == MultiLineString:
- #       return shapely_utils.best_closure(line, new)
-
-#    visualize.show_paths(to_visual([line]))
- #   visualize.show_paths(to_visual([linear_ring]))
-
-  #  return shapely_utils.best_closure(line, [new])
-
+    return shapely_utils.best_closure(line, new), new
 
 class Cell:
 
@@ -77,10 +63,9 @@ class Cell:
 
         self.paths = []
         self.subregions = []
+        self.safe = []
 
     def construct(self):
-
-        global i
 
         last = self.start        
 
@@ -88,9 +73,7 @@ class Cell:
         size = sqrt(pow(bounds[2]-bounds[0],2)+pow(bounds[3]-bounds[1],2))
 
         region = Polygon(self.region.coords)
-        if not region.is_valid:
-            visualize.show_paths(to_visual([self.region]),color = (1,0,0))
-            print explain_validity(region)
+        if not region.is_valid or region.is_empty:
             return
         while True:
             self.paths.append(last)
@@ -103,18 +86,26 @@ class Cell:
             if len(inside) == 0:
                 return
             if len(inside) > 1:
-                
-                i -= 20
+
+                previous = inside[-1].coords[-1]
+
                 for line in inside:
-                    p = new_bound(self.region, line, size)
+                    p, new = new_bound(self.region, line, size)
                     if p.is_empty:
-                        print "wtf bad case is bad"
                         continue
 
-                    sub = Cell(p, None, line, self.offset)
+                    sub = Cell(p, new, line, self.offset)
         
                     sub.construct()
+                    rapid = shapely_utils.cut_ring(self.region,previous,line.coords[0])               
+                    visualize.show_paths(to_visual([rapid]), color = (1,0,0))
+
+                    previous = line.coords[-1]
+                
                     self.subregions.append(sub)
+                    self.safe.append(rapid)
+
+                return
 
             last = inside[0]
 
@@ -124,12 +115,19 @@ class Cell:
         for sub in self.subregions:
             for seg in sub.emit():
                 yield seg
+            # safe traversal code here
 
-        for seg in self.paths:
+        for seg in reversed(self.paths):
             yield seg
+            if not type(self.bound) == LinearRing and not type(self.bound) == LineString:
+                self.bound = self.bound[0]
+
+            rapid = shapely_utils.cut_line(self.bound, seg.coords[0], seg.coords[-1])
+            if not rapid is None:
+                visualize.show_paths(to_visual([rapid]), color  = (1,0,0))
 
 def offsetting(obj,size):
-    off = obj.parallel_offset(2,'left', join_style = 3)
+    off = obj.parallel_offset(2.0,'left', join_style = 3)
     if off.is_empty:
         return off
 

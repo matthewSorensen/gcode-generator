@@ -61,7 +61,57 @@ def intersect(polygon,curve):
     else:
         return [result]
 
+def cut_ring(line, start, end, eps = 0.0000001):
+    j = None
+    for index, p in enumerate(line.coords):
+        last = line.coords[index - 1]
+        if abs(euclidean(start,last)+euclidean(start,p) - euclidean(last,p)) < eps:
+            j = index 
+            break
+    
+    if j is None:
+        return None
+    
+    for index, p in enumerate(line.coords[j:]):
+        last = line.coords[index + j - 1]
+        if abs(euclidean(end,last)+euclidean(end,p) - euclidean(last,p)) < eps:
+            return LineString([start] + line.coords[j:(index+j)] + [end])
+
+    for index, p in enumerate(line.coords[0:j]):
+        last = line.coords[index - 1]
+        if abs(euclidean(end,last)+euclidean(end,p) - euclidean(last,p)) < eps:
+            return LineString([start] + line.coords[j:] + line.coords[0:index] + [end])
+    
+    return None
 
 
-    # if curve is a single curve, we're all good
-    # otherwise, if curve is a linear ring, and the intersection yields a MultiLine string, we may have to carefully repair it
+def cut_line(line, start, end, eps = 0.000001):
+    j,k = None, None
+    for index, p in enumerate(line.coords[1:]):
+        last = line.coords[index]
+        seg = euclidean(last,p)
+        if abs(euclidean(start,last) + euclidean(start,p) - seg) < eps:
+            j = index + 1
+        if abs(euclidean(end,last) + euclidean(end,p) - seg) < eps:
+            k = index + 1
+        if (not j is None) and (not k is None):
+            if j <= k:
+                return LineString([start] + line.coords[j:k] + [end])
+            else:
+                l = [end] + line.coords[k:j] + [start]
+                l.reverse()
+                return LineString(l)
+
+    return None
+
+
+
+
+    
+
+
+
+
+    
+    
+
