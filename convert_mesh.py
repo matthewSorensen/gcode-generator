@@ -36,15 +36,17 @@ def dot2(a,b):
     # but we want to keep the original vectors three-vectors
     return a[0]*b[0]+a[1]*b[1]
 
-def raster_mesh(mesh, trans, matrix):
+def raster_mesh(mesh, matrix, scale = (1,1,1), trans = (0,0,0)):
     verts, tri = mesh
-    trans = numpy.array([trans[0],trans[1],1]) # trans is a 2D scaling vector - expand to 3-space
+
+    trans = numpy.array(trans)
+    scale = numpy.array(scale)
 
     for a,b,c in tri:
-        a = verts[a,...] * trans
-        b = verts[b,...] * trans
-        c = verts[c,...] * trans
-
+        a = (verts[a,...] + trans) * scale
+        b = (verts[b,...] + trans) * scale 
+        c = (verts[c,...] + trans) * scale 
+ 
         # pick some direction; identify the interval we need to raster upon  
         y = [a[1],b[1],c[1]]
         yinterval = int(math.floor(min(y))), int(math.ceil(max(y)) + 1)
